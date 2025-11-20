@@ -1,7 +1,18 @@
 import 'package:cityweather/pages/accueil.dart';
+import 'package:cityweather/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() {
+  // Configuration de la barre de statut
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
+  
   runApp(const MyApp());
 }
 
@@ -13,10 +24,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'CityWeather',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       home: const AccueilPage(),
     );
   }

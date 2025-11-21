@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Couleurs principales
   static const Color primaryBlue = Color(0xFF4A90E2);
   static const Color darkBlue = Color(0xFF2C5F8D);
   static const Color lightBlue = Color(0xFF87CEEB);
@@ -10,7 +9,6 @@ class AppTheme {
   static const Color darkGray = Color(0xFF37474F);
   static const Color lightGray = Color(0xFFF5F5F5);
   
-  // Gradients
   static const LinearGradient sunnyGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -29,7 +27,6 @@ class AppTheme {
     colors: [Color(0xFF1A237E), Color(0xFF283593)],
   );
 
-  // Thème clair
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
@@ -38,7 +35,6 @@ class AppTheme {
       brightness: Brightness.light,
     ),
     
-    // AppBar
     appBarTheme: const AppBarTheme(
       elevation: 0,
       centerTitle: true,
@@ -52,7 +48,6 @@ class AppTheme {
       ),
     ),
     
-    // Cards
     cardTheme: CardThemeData(
       elevation: 4,
       shadowColor: Colors.black26,
@@ -62,7 +57,6 @@ class AppTheme {
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
     ),
     
-    // Boutons
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         elevation: 2,
@@ -77,7 +71,6 @@ class AppTheme {
       ),
     ),
     
-    // Input fields
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
@@ -97,7 +90,6 @@ class AppTheme {
       hintStyle: TextStyle(color: Colors.grey.shade500),
     ),
     
-    // Texte
     textTheme: const TextTheme(
       displayLarge: TextStyle(
         fontSize: 72,
@@ -137,13 +129,12 @@ class AppTheme {
     scaffoldBackgroundColor: const Color(0xFFF8F9FA),
   );
 
-  // Styles personnalisés pour les cartes météo
   static BoxDecoration weatherCardDecoration = BoxDecoration(
     gradient: sunnyGradient,
     borderRadius: BorderRadius.circular(20),
     boxShadow: [
       BoxShadow(
-        color: primaryBlue.withOpacity(0.3),
+        color: primaryBlue.withValues(alpha:0.3),
         blurRadius: 12,
         offset: const Offset(0, 6),
       ),
@@ -159,14 +150,13 @@ class AppTheme {
     borderRadius: BorderRadius.circular(20),
     boxShadow: [
       BoxShadow(
-        color: const Color(0xFF667EEA).withOpacity(0.3),
+        color: const Color(0xFF667EEA).withValues(alpha:0.3),
         blurRadius: 12,
         offset: const Offset(0, 6),
       ),
     ],
   );
 
-  // Icônes météo selon le code
   static IconData getWeatherIcon(int code) {
     switch (code) {
       case 0:
@@ -196,7 +186,6 @@ class AppTheme {
     }
   }
 
-  // Couleur selon le code météo
   static Color getWeatherColor(int code) {
     switch (code) {
       case 0:

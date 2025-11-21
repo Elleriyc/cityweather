@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cityweather/theme/app_theme.dart';
+import 'package:cityweather/utils/logger.dart';
 import '../services/database_service.dart';
 
 class FavoritesPage extends StatefulWidget {
@@ -30,7 +31,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Erreur chargement favoris: $e');
+      logger.e('Erreur chargement favoris: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -38,11 +39,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Future<void> _deleteFavorite(FavoriteCity city) async {
     try {
       await DatabaseService.instance.deleteFavorite(city.id!);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${city.name} supprimé des favoris')),
       );
       _loadFavorites();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur: $e')),
       );
@@ -85,7 +88,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppTheme.lightBlue.withOpacity(0.1),
+              AppTheme.lightBlue.withValues(alpha:0.1),
               Colors.white,
             ],
           ),
@@ -100,13 +103,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: AppTheme.lightBlue.withOpacity(0.1),
+                            color: AppTheme.lightBlue.withValues(alpha:0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.star_border,
                             size: 80,
-                            color: AppTheme.primaryBlue.withOpacity(0.5),
+                            color: AppTheme.primaryBlue.withValues(alpha:0.5),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -179,7 +182,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.06),
+                                    color: Colors.black.withValues(alpha:0.06),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -201,7 +204,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                         Container(
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.sunnyYellow.withOpacity(0.2),
+                                            color: AppTheme.sunnyYellow.withValues(alpha:0.2),
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: const Icon(

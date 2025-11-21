@@ -31,7 +31,7 @@ class WeatherCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 8,
-      shadowColor: AppTheme.primaryBlue.withOpacity(0.4),
+      shadowColor: AppTheme.primaryBlue.withValues(alpha:0.4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
       ),
@@ -41,7 +41,7 @@ class WeatherCard extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.getWeatherColor(weatherCode).withOpacity(0.8),
+              AppTheme.getWeatherColor(weatherCode).withValues(alpha:0.8),
               AppTheme.getWeatherColor(weatherCode),
             ],
           ),
@@ -52,7 +52,6 @@ class WeatherCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // En-tête avec ville et favoris
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -74,7 +73,7 @@ class WeatherCard extends StatelessWidget {
                           description,
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha:0.9),
                           ),
                         ),
                       ],
@@ -93,7 +92,6 @@ class WeatherCard extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               
-              // Température et icône
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -126,18 +124,17 @@ class WeatherCard extends StatelessWidget {
                   Icon(
                     AppTheme.getWeatherIcon(weatherCode),
                     size: 80,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha:0.8),
                   ),
                 ],
               ),
               
               const SizedBox(height: 24),
               
-              // Informations supplémentaires
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha:0.2),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -187,7 +184,7 @@ class WeatherCard extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha:0.8),
           ),
         ),
       ],

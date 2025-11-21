@@ -18,7 +18,7 @@ class LocationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 6,
-      shadowColor: const Color(0xFF667EEA).withOpacity(0.4),
+      shadowColor: const Color(0xFF667EEA).withValues(alpha:0.4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
@@ -40,7 +40,7 @@ class LocationCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha:0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -68,7 +68,7 @@ class LocationCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha:0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -82,7 +82,7 @@ class LocationCard extends StatelessWidget {
                     Container(
                       width: 1,
                       height: 40,
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha:0.3),
                     ),
                     _buildCoordinateInfo(
                       'Longitude',
@@ -96,14 +96,14 @@ class LocationCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha:0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       Icons.info_outline,
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha:0.8),
                       size: 20,
                     ),
                     const SizedBox(width: 12),
@@ -111,7 +111,7 @@ class LocationCard extends StatelessWidget {
                       child: Text(
                         'Cliquez sur "Localiser" pour obtenir votre position',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha:0.9),
                           fontSize: 14,
                         ),
                       ),
@@ -164,12 +164,12 @@ class LocationCard extends StatelessWidget {
   Widget _buildCoordinateInfo(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white.withOpacity(0.8), size: 20),
+        Icon(icon, color: Colors.white.withValues(alpha:0.8), size: 20),
         const SizedBox(height: 8),
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha:0.8),
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),

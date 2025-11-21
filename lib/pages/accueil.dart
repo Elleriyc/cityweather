@@ -1,11 +1,10 @@
 import 'package:cityweather/services/api_service.dart';
 import 'package:cityweather/services/database_service.dart';
 import 'package:cityweather/pages/favorites_page.dart';
+import 'package:cityweather/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-/// Page d'accueil "cityweather"
 class AccueilPage extends StatefulWidget {
   const AccueilPage({super.key});
 
@@ -41,16 +40,13 @@ class _AccueilPageState extends State<AccueilPage> {
   final TextEditingController _cityController = TextEditingController();
   bool _isLoading = false;
   String? _error;
-  WeatherData? _weather; // Météo affichée actuellement
-  WeatherData? _locationWeather; // Météo de la position GPS
-  Map<String, dynamic>? _currentCityData; // Pour stocker les données de la ville actuelle
+  WeatherData? _weather;
+  WeatherData? _locationWeather;
+  Map<String, dynamic>? _currentCityData;
   bool _isFavorite = false;
-  double? _currentLatitude;
-  double? _currentLongitude;
   bool _isLoadingLocation = false;
   List<Map<String, dynamic>> _hourlyData = [];
   List<Map<String, dynamic>> _suggestions = [];
-  bool _isSearching = false;
   List<FavoriteCity> _favorites = [];
 
   @override
@@ -74,47 +70,38 @@ class _AccueilPageState extends State<AccueilPage> {
         _favorites = favorites;
       });
     } catch (e) {
-      print('Erreur chargement favoris: $e');
+      logger.e('Erreur chargement favoris: $e');
     }
   }
 
   void _onSearchChanged() async {
     final query = _cityController.text.trim();
-    print('_onSearchChanged appelé avec: "$query"');
+    logger.d('_onSearchChanged appelé avec: "$query"');
     
     if (query.isEmpty) {
       setState(() {
         _suggestions = [];
-        _isSearching = false;
       });
       return;
     }
 
     if (query.length < 2) {
-      print('Query trop courte: ${query.length} caractères');
+      logger.d('Query trop courte: ${query.length} caractères');
       return;
     }
 
-    setState(() {
-      _isSearching = true;
-    });
-
     try {
-      print('Appel fetchCitySuggestions pour: $query');
+      logger.d('Appel fetchCitySuggestions pour: $query');
       final results = await fetchCitySuggestions(query);
-      print('Résultats reçus: ${results.length} villes');
-      print('Premiers résultats: $results');
+      logger.d('Résultats reçus: ${results.length} villes');
+      logger.d('Premiers résultats: $results');
       
       setState(() {
         _suggestions = results;
-        _isSearching = false;
       });
-      print('setState terminé, _suggestions.length = ${_suggestions.length}');
+      logger.d('setState terminé, _suggestions.length = ${_suggestions.length}');
     } catch (e) {
-      print('Erreur recherche: $e');
-      setState(() {
-        _isSearching = false;
-      });
+      logger.e('Erreur recherche: $e');
     }
   }
 
@@ -125,30 +112,28 @@ class _AccueilPageState extends State<AccueilPage> {
     });
 
     try {
-      print('Récupération météo pour lat: $latitude, lon: $longitude');
+      logger.d('Récupération météo pour lat: $latitude, lon: $longitude');
       
       final weatherData = await fetchWeatherFromCoordinates(latitude, longitude);
-      print('Données météo reçues: $weatherData');
+      logger.d('Données météo reçues: $weatherData');
 
-      if (weatherData['current_weather'] != null) {
-        final current = weatherData['current_weather'];
-        final weatherCode = (current['weathercode'] as num?)?.toInt() ?? 0;
+      if (weatherData['current'] != null) {
+        final current = weatherData['current'];
+        final weatherCode = (current['weather_code'] as num?)?.toInt() ?? 0;
         
-        // Extraire les données horaires
         List<Map<String, dynamic>> hourlyData = [];
         if (weatherData['hourly'] != null) {
-          print('Données horaires trouvées!');
+          logger.d('Données horaires trouvées!');
           final hourly = weatherData['hourly'];
-          print('Contenu hourly: $hourly');
+          logger.d('Contenu hourly: $hourly');
           final times = hourly['time'] as List<dynamic>? ?? [];
           final temps = hourly['temperature_2m'] as List<dynamic>? ?? [];
           final codes = hourly['weathercode'] as List<dynamic>? ?? [];
           
-          print('Nombre d\'heures: ${times.length}');
-          print('Nombre de températures: ${temps.length}');
-          print('Nombre de codes: ${codes.length}');
+          logger.d('Nombre d\'heures: ${times.length}');
+          logger.d('Nombre de températures: ${temps.length}');
+          logger.d('Nombre de codes: ${codes.length}');
           
-          // Prendre les 24 prochaines heures
           for (int i = 0; i < 24 && i < times.length; i++) {
             hourlyData.add({
               'time': times[i],
@@ -156,35 +141,35 @@ class _AccueilPageState extends State<AccueilPage> {
               'weathercode': (codes[i] as num?)?.toInt() ?? 0,
             });
           }
-          print('Données horaires extraites: ${hourlyData.length} heures');
-          print('Premier élément: ${hourlyData.isNotEmpty ? hourlyData[0] : "aucun"}');
+          logger.d('Données horaires extraites: ${hourlyData.length} heures');
+          logger.d('Premier élément: ${hourlyData.isNotEmpty ? hourlyData[0] : "aucun"}');
         } else {
-          print('Pas de données horaires dans la réponse API');
+          logger.d('Pas de données horaires dans la réponse API');
         }
         
         final weather = WeatherData(
           city: 'Ma position',
-          temperatureC: (current['temperature'] as num?)?.toDouble() ?? 0.0,
+          temperatureC: (current['temperature_2m'] as num?)?.toDouble() ?? 0.0,
           description: _getWeatherDescription(weatherCode),
           weatherCode: weatherCode,
           iconUrl: '',
-          humidity: 0,
-          windKph: (current['windspeed'] as num?)?.toDouble() ?? 0.0,
+          humidity: (current['relative_humidity_2m'] as num?)?.toInt() ?? 0,
+          windKph: (current['wind_speed_10m'] as num?)?.toDouble() ?? 0.0,
           latitude: latitude,
           longitude: longitude,
         );
 
-        print('Avant setState - hourlyData.length: ${hourlyData.length}');
+        logger.d('Avant setState - hourlyData.length: ${hourlyData.length}');
         setState(() {
           _locationWeather = weather;
           _hourlyData = hourlyData;
           _isLoading = false;
           _isLoadingLocation = false;
         });
-        print('Après setState - _hourlyData.length: ${_hourlyData.length}');
+        logger.d('Après setState - _hourlyData.length: ${_hourlyData.length}');
       }
     } catch (e) {
-      print('Erreur récupération météo position: $e');
+      logger.e('Erreur récupération météo position: $e');
       setState(() {
         _isLoading = false;
         _isLoadingLocation = false;
@@ -193,30 +178,26 @@ class _AccueilPageState extends State<AccueilPage> {
     }
   }
 
-  // Sélectionner une ville depuis les suggestions
   void selectCity(Map<String, dynamic> cityData) async {
-    print('=== selectCity appelée ===');
-    print('cityData: $cityData');
+    logger.d('=== selectCity appelée ===');
+    logger.d('cityData: $cityData');
     
     setState(() {
       _cityController.clear();
       _suggestions = [];
     });
     
-    // Lancer la recherche météo avec les coordonnées directes
     await fetchWeatherForCity(cityData);
     
-    // Vérifier si c'est un favori et recharger la liste
+    await _loadFavorites();
     await _loadFavorites();
   }
 
-  // Récupérer la position GPS actuelle
-  // TODO: Implémenter la géolocalisation avec le package geolocator
   Future<void> getCurrentLocation() async {
     setState(() {
       _isLoadingLocation = true;
       _error = null;
-      _weather = null; // Effacer la météo ville pour afficher la météo GPS
+      _weather = null;
     });
 
     try {
@@ -248,7 +229,6 @@ class _AccueilPageState extends State<AccueilPage> {
       return;
     }
 
-    // 👉 Récupération de la position
     Position pos = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -256,11 +236,10 @@ class _AccueilPageState extends State<AccueilPage> {
     final latitude = pos.latitude;
     final longitude = pos.longitude;
 
-      // Appeler l'API météo avec ces coordonnées
       await _fetchWeatherFromLocation(latitude, longitude);
 
     } catch (e) {
-      print('Erreur récupération position: $e');
+      logger.e('Erreur récupération position: $e');
       setState(() {
         _error = "Impossible de récupérer la position: $e";
         _isLoadingLocation = false;
@@ -268,29 +247,22 @@ class _AccueilPageState extends State<AccueilPage> {
     }
   }
 
-  // Récupérer la météo depuis les coordonnées GPS
-
-
-  // Remplacez le contenu de cette fonction par votre appel API.
   Future<void> fetchWeather(String city) async {
-    print('=== Début fetchWeather pour: $city ===');
+    logger.d('=== Début fetchWeather pour: $city ===');
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      print('Appel de fetchData...');
+      logger.d('Appel de fetchData...');
       final data = await fetchData(city);
       
-      // Afficher le résultat dans la console
-      print('Résultat API: $data');
+      logger.d('Résultat API: $data');
       
-      // Extraire les données de géocodage et météo
       final geoData = data['geo'];
       final forecastData = data['forecast'];
       
-      // Vérifier si des résultats ont été trouvés
       if (geoData['results'] != null && (geoData['results'] as List).isNotEmpty) {
         final cityInfo = geoData['results'][0];
         _processWeatherData(cityInfo, forecastData);
@@ -300,7 +272,7 @@ class _AccueilPageState extends State<AccueilPage> {
         });
       }
     } catch (e) {
-      print('Erreur: $e');
+      logger.e('Erreur: $e');
       setState(() {
         _error = "Impossible de récupérer la météo: $e";
       });
@@ -311,10 +283,9 @@ class _AccueilPageState extends State<AccueilPage> {
     }
   }
 
-  // Récupérer la météo à partir des coordonnées déjà connues
   Future<void> fetchWeatherForCity(Map<String, dynamic> cityInfo) async {
-    print('=== fetchWeatherForCity appelée ===');
-    print('cityInfo: $cityInfo');
+    logger.d('=== fetchWeatherForCity appelée ===');
+    logger.d('cityInfo: $cityInfo');
     
     setState(() {
       _isLoading = true;
@@ -325,15 +296,14 @@ class _AccueilPageState extends State<AccueilPage> {
       final latitude = (cityInfo['latitude'] as num).toDouble();
       final longitude = (cityInfo['longitude'] as num).toDouble();
       
-      print('Coordonnées: lat=$latitude, lon=$longitude');
+      logger.d('Coordonnées: lat=$latitude, lon=$longitude');
       
-      // Appeler l'API météo via api_service
       final forecastData = await fetchWeatherFromCoordinates(latitude, longitude);
-      print('forecastData reçu: $forecastData');
+      logger.d('forecastData reçu: $forecastData');
       
       _processWeatherData(cityInfo, forecastData);
     } catch (e) {
-      print('Erreur dans fetchWeatherForCity: $e');
+      logger.e('Erreur dans fetchWeatherForCity: $e');
       setState(() {
         _error = "Impossible de récupérer la météo: $e";
       });
@@ -344,23 +314,19 @@ class _AccueilPageState extends State<AccueilPage> {
     }
   }
 
-  // Traiter les données météo (fonction commune)
   void _processWeatherData(Map<String, dynamic> cityInfo, Map<String, dynamic> forecastData) async {
-    print('=== _processWeatherData appelée ===');
-    print('forecastData: $forecastData');
+    logger.d('=== _processWeatherData appelée ===');
+    logger.d('forecastData: $forecastData');
     
     try {
-      final currentWeather = forecastData['current_weather'];
-      print('currentWeather: $currentWeather');
+      final current = forecastData['current'];
+      logger.d('current: $current');
       
-      // Extraire les coordonnées
       final geoLat = (cityInfo['latitude'] as num).toDouble();
       final geoLon = (cityInfo['longitude'] as num).toDouble();
       
-      // Créer WeatherData avec les vraies données de l'API
-      final weatherCode = (currentWeather['weathercode'] as num?)?.toInt() ?? 0;
+      final weatherCode = (current['weather_code'] as num?)?.toInt() ?? 0;
       
-      // Extraire les données horaires
       List<Map<String, dynamic>> hourlyData = [];
       if (forecastData['hourly'] != null) {
         final hourly = forecastData['hourly'];
@@ -379,58 +345,54 @@ class _AccueilPageState extends State<AccueilPage> {
       
       final weatherData = WeatherData(
         city: '${cityInfo['name']}${cityInfo['country'] != null ? ", ${cityInfo['country']}" : ""}',
-        temperatureC: (currentWeather['temperature'] as num?)?.toDouble() ?? 0.0,
+        temperatureC: (current['temperature_2m'] as num?)?.toDouble() ?? 0.0,
         description: _getWeatherDescription(weatherCode),
         weatherCode: weatherCode,
         iconUrl: null,
-        humidity: (forecastData['current_weather']['humidity'] as num?)?.toInt() ?? 0,
-        windKph: (currentWeather['windspeed'] as num?)?.toDouble() ?? 0.0,
+        humidity: (current['relative_humidity_2m'] as num?)?.toInt() ?? 0,
+        windKph: (current['wind_speed_10m'] as num?)?.toDouble() ?? 0.0,
         latitude: geoLat,
         longitude: geoLon,
       );
 
-      print('weatherData créé: ${weatherData.city}, ${weatherData.temperatureC}°C');
+      logger.d('weatherData créé: ${weatherData.city}, ${weatherData.temperatureC}°C');
 
-      // Stocker les données de la ville actuelle
       _currentCityData = cityInfo;
       
-      // Vérifier si la ville est en favoris
       bool isFav = false;
       try {
         isFav = await DatabaseService.instance.isFavorite(
           cityInfo['name'],
           cityInfo['country'] ?? '',
         );
-        print('isFavorite: $isFav');
+        logger.d('isFavorite: $isFav');
       } catch (e) {
-        print('Erreur vérification favoris: $e');
+        logger.e('Erreur vérification favoris: $e');
       }
 
-      print('Appel setState...');
+      logger.d('Appel setState...');
 
       setState(() {
         _weather = weatherData;
         _hourlyData = hourlyData;
         _isFavorite = isFav;
-        _locationWeather = null; // Désactiver l'affichage GPS
+        _locationWeather = null;
       });
       
-      print('setState terminé, _weather=${_weather != null}');
+      logger.d('setState terminé, _weather=${_weather != null}');
     } catch (e) {
-      print('ERREUR dans _processWeatherData: $e');
+      logger.e('ERREUR dans _processWeatherData: $e');
       setState(() {
         _error = "Erreur traitement données: $e";
       });
     }
   }
 
-  // Ajouter/retirer des favoris
   Future<void> _toggleFavorite() async {
     if (_currentCityData == null) return;
 
     try {
       if (_isFavorite) {
-        // Trouver et supprimer le favori
         final favorites = await DatabaseService.instance.getFavorites();
         final favorite = favorites.firstWhere(
           (f) => f.name == _currentCityData!['name'] && 
@@ -440,28 +402,29 @@ class _AccueilPageState extends State<AccueilPage> {
         
         setState(() => _isFavorite = false);
         await _loadFavorites();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Retiré des favoris')),
         );
       } else {
-        // Ajouter aux favoris
         final favoriteCity = FavoriteCity.fromApiData(_currentCityData!);
         await DatabaseService.instance.addFavorite(favoriteCity);
         
         setState(() => _isFavorite = true);
         await _loadFavorites();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Ajouté aux favoris')),
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erreur: $e')),
       );
     }
   }
 
-  // Ouvrir la page des favoris
   void _openFavorites() {
     Navigator.push(
       context,
@@ -475,31 +438,17 @@ class _AccueilPageState extends State<AccueilPage> {
     );
   }
 
-  // Ouvrir Google Maps avec les coordonnées météo
-  void _openMapFromWeather(WeatherData w) {
-    openGoogleMaps(w.latitude, w.longitude);
-  }
-
-  // Ouvrir Google Maps à une position donnée
-  Future<void> openGoogleMaps(double lat, double lon) async {
-    final webUrl = Uri.parse(
-      "https://www.google.com/maps/search/?api=1&query=$lat,$lon",
-    );
-
+  void _openMapFromWeather(WeatherData w) async {
     try {
-      await launchUrl(
-        webUrl,
-        mode: LaunchMode.externalApplication,
-      );
+      await openGoogleMaps(w.latitude, w.longitude);
     } catch (e) {
-      print("Erreur Google Maps: $e");
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Impossible d'ouvrir Maps")),
       );
     }
   }
 
-  // Convertir le code météo en description
   String _getWeatherDescription(int? code) {
     if (code == null) return 'Conditions inconnues';
     
@@ -535,7 +484,7 @@ class _AccueilPageState extends State<AccueilPage> {
   
 
   Widget _buildBody() {
-    print('_buildBody: _isLoading=$_isLoading, _error=$_error, _locationWeather=${_locationWeather != null}');
+    logger.d('_buildBody: _isLoading=$_isLoading, _error=$_error, _locationWeather=${_locationWeather != null}');
     
     if (_isLoading) {
       return Center(
@@ -549,7 +498,7 @@ class _AccueilPageState extends State<AccueilPage> {
             Text(
               'Chargement de la météo...',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
                 fontSize: 16,
               ),
             ),
@@ -565,14 +514,14 @@ class _AccueilPageState extends State<AccueilPage> {
           children: [
             Icon(
               Icons.error_outline,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha:0.7),
               size: 64,
             ),
             const SizedBox(height: 16),
             Text(
               _error!,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
                 fontSize: 16,
               ),
               textAlign: TextAlign.center,
@@ -582,7 +531,6 @@ class _AccueilPageState extends State<AccueilPage> {
       );
     }
 
-    // Afficher la météo (position GPS ou ville recherchée)
     final w = _weather ?? _locationWeather;
     if (w != null) {
       return SingleChildScrollView(
@@ -590,13 +538,12 @@ class _AccueilPageState extends State<AccueilPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 20),
-            // Nom de la ville avec icône favori
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   _locationWeather != null && _weather == null ? Icons.location_on : Icons.location_city,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha:0.9),
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -604,7 +551,7 @@ class _AccueilPageState extends State<AccueilPage> {
                   w.city,
                   style: TextStyle(
                     fontSize: 18,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha:0.9),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -614,7 +561,7 @@ class _AccueilPageState extends State<AccueilPage> {
                     onTap: _toggleFavorite,
                     child: Icon(
                       _isFavorite ? Icons.star : Icons.star_border,
-                      color: _isFavorite ? Colors.amber : Colors.white.withOpacity(0.7),
+                      color: _isFavorite ? Colors.amber : Colors.white.withValues(alpha:0.7),
                       size: 24,
                     ),
                   ),
@@ -622,15 +569,13 @@ class _AccueilPageState extends State<AccueilPage> {
               ],
             ),
             const SizedBox(height: 32),
-            // Grande icône météo
             Icon(
               _getWeatherIcon(w.weatherCode),
               size: 120,
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha:0.95),
             ),
             const SizedBox(height: 32),
             
-            // Température
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -659,18 +604,16 @@ class _AccueilPageState extends State<AccueilPage> {
             ),
             const SizedBox(height: 16),
             
-            // Description
             Text(
               w.description,
               style: TextStyle(
                 fontSize: 24,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
                 fontWeight: FontWeight.w400,
               ),
             ),
             const SizedBox(height: 48),
             
-            // Informations supplémentaires
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Row(
@@ -684,7 +627,7 @@ class _AccueilPageState extends State<AccueilPage> {
                   Container(
                     width: 1,
                     height: 50,
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha:0.3),
                   ),
                   _buildWeatherInfo(
                     Icons.water_drop_outlined,
@@ -695,7 +638,6 @@ class _AccueilPageState extends State<AccueilPage> {
               ),
             ),
             
-            // 👉 BOUTON GOOGLE MAPS ICI
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: () => _openMapFromWeather(w),
@@ -703,7 +645,6 @@ class _AccueilPageState extends State<AccueilPage> {
               label: const Text("Ouvrir dans Google Maps"),
             ),
             
-            // Barre de température heure par heure (toujours affichée)
             const SizedBox(height: 40),
             _buildHourlyForecast(),
             const SizedBox(height: 40),
@@ -712,7 +653,6 @@ class _AccueilPageState extends State<AccueilPage> {
       );
     }
 
-    // État initial : invitation à localiser
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -720,7 +660,7 @@ class _AccueilPageState extends State<AccueilPage> {
           Icon(
             Icons.location_searching,
             size: 80,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha:0.7),
           ),
           const SizedBox(height: 24),
           Text(
@@ -728,7 +668,7 @@ class _AccueilPageState extends State<AccueilPage> {
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.w300,
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha:0.95),
             ),
           ),
           const SizedBox(height: 12),
@@ -736,7 +676,7 @@ class _AccueilPageState extends State<AccueilPage> {
             'Appuyez sur le bouton ci-dessous\npour obtenir la météo de votre position',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha:0.8),
             ),
             textAlign: TextAlign.center,
           ),
@@ -788,11 +728,11 @@ class _AccueilPageState extends State<AccueilPage> {
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: 'Rechercher une ville...',
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-              prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha:0.6)),
+              prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha:0.8)),
               suffixIcon: _cityController.text.isNotEmpty
                   ? IconButton(
-                      icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.8)),
+                      icon: Icon(Icons.clear, color: Colors.white.withValues(alpha:0.8)),
                       onPressed: () {
                         _cityController.clear();
                         setState(() {
@@ -802,7 +742,7 @@ class _AccueilPageState extends State<AccueilPage> {
                     )
                   : null,
               filled: true,
-              fillColor: Colors.white.withOpacity(0.2),
+              fillColor: Colors.white.withValues(alpha:0.2),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(30),
                 borderSide: BorderSide.none,
@@ -815,7 +755,7 @@ class _AccueilPageState extends State<AccueilPage> {
             Container(
               constraints: const BoxConstraints(maxHeight: 200),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.95),
+                color: Colors.white.withValues(alpha:0.95),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: ListView.builder(
@@ -851,7 +791,6 @@ class _AccueilPageState extends State<AccueilPage> {
         itemCount: _favorites.length + 1,
         itemBuilder: (context, index) {
           if (index == 0) {
-            // Bouton GPS
             return GestureDetector(
               onTap: getCurrentLocation,
               child: Container(
@@ -859,11 +798,11 @@ class _AccueilPageState extends State<AccueilPage> {
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color: _locationWeather != null 
-                      ? Colors.white.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.2),
+                      ? Colors.white.withValues(alpha:0.3)
+                      : Colors.white.withValues(alpha:0.2),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha:0.5),
                     width: 2,
                   ),
                 ),
@@ -872,14 +811,14 @@ class _AccueilPageState extends State<AccueilPage> {
                   children: [
                     Icon(
                       Icons.gps_fixed,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha:0.9),
                       size: 28,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'GPS',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha:0.9),
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
@@ -909,11 +848,11 @@ class _AccueilPageState extends State<AccueilPage> {
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
                 color: isSelected 
-                    ? Colors.white.withOpacity(0.3)
-                    : Colors.white.withOpacity(0.2),
+                    ? Colors.white.withValues(alpha:0.3)
+                    : Colors.white.withValues(alpha:0.2),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha:0.5),
                   width: 2,
                 ),
               ),
@@ -922,7 +861,7 @@ class _AccueilPageState extends State<AccueilPage> {
                 children: [
                   Icon(
                     Icons.location_city,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha:0.9),
                     size: 24,
                   ),
                   const SizedBox(height: 4),
@@ -931,7 +870,7 @@ class _AccueilPageState extends State<AccueilPage> {
                         ? '${favorite.name.substring(0, 7)}.'
                         : favorite.name,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha:0.9),
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
@@ -982,7 +921,7 @@ class _AccueilPageState extends State<AccueilPage> {
       children: [
         Icon(
           icon,
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha:0.9),
           size: 28,
         ),
         const SizedBox(height: 8),
@@ -998,7 +937,7 @@ class _AccueilPageState extends State<AccueilPage> {
           label,
           style: TextStyle(
             fontSize: 14,
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withValues(alpha:0.7),
           ),
         ),
       ],
@@ -1018,7 +957,7 @@ class _AccueilPageState extends State<AccueilPage> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
               ),
             ),
           ),
@@ -1029,7 +968,7 @@ class _AccueilPageState extends State<AccueilPage> {
                     child: Text(
                       'Chargement...',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha:0.7),
                         fontSize: 14,
                       ),
                     ),
@@ -1044,7 +983,6 @@ class _AccueilPageState extends State<AccueilPage> {
                       final temp = hour['temperature'] as double;
                       final code = hour['weathercode'] as int;
                       
-                      // Extraire l'heure depuis le format ISO 8601
                       final DateTime dateTime = DateTime.parse(timeStr);
                       final hourStr = '${dateTime.hour}h';
                       
@@ -1053,10 +991,10 @@ class _AccueilPageState extends State<AccueilPage> {
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha:0.15),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha:0.2),
                             width: 1,
                           ),
                         ),
@@ -1067,13 +1005,13 @@ class _AccueilPageState extends State<AccueilPage> {
                               hourStr,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha:0.9),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                             Icon(
                               _getWeatherIcon(code),
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha:0.9),
                               size: 28,
                             ),
                             Text(
@@ -1111,7 +1049,7 @@ class _AccueilPageState extends State<AccueilPage> {
           children: [
             Icon(
               Icons.wb_sunny,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha:0.9),
               size: 28,
             ),
             const SizedBox(width: 8),
@@ -1133,13 +1071,13 @@ class _AccueilPageState extends State<AccueilPage> {
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha:0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
               icon: Icon(
                 Icons.star,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha:0.9),
               ),
               onPressed: _openFavorites,
               tooltip: 'Mes favoris',
@@ -1158,11 +1096,8 @@ class _AccueilPageState extends State<AccueilPage> {
         child: SafeArea(
           child: Column(
             children: [
-              // Barre de recherche
               _buildSearchBar(),
-              // Corps principal
               Expanded(child: _buildBody()),
-              // Barre de favoris en bas
               if (_favorites.isNotEmpty || _locationWeather != null) 
                 _buildFavoritesBar(),
             ],
@@ -1174,59 +1109,59 @@ class _AccueilPageState extends State<AccueilPage> {
   
   List<Color> _getGradientColors(int weatherCode) {
     switch (weatherCode) {
-      case 0: // Ciel dégagé - Bleu ciel lumineux
+      case 0:
         return [const Color(0xFF4A90E2), const Color(0xFF87CEEB)];
       
-      case 1: // Principalement dégagé - Bleu clair
+      case 1:
         return [const Color(0xFF64B5F6), const Color(0xFF90CAF9)];
       
-      case 2: // Partiellement nuageux - Gris-bleu
+      case 2:
         return [const Color(0xFF78909C), const Color(0xFF90A4AE)];
       
-      case 3: // Nuageux - Gris
+      case 3:
         return [const Color(0xFF607D8B), const Color(0xFF90A4AE)];
       
       case 45:
-      case 48: // Brouillard - Gris pâle
+      case 48:
         return [const Color(0xFF90A4AE), const Color(0xFFCFD8DC)];
       
       case 51:
       case 53:
-      case 55: // Bruine - Gris bleuté
+      case 55:
         return [const Color(0xFF78909C), const Color(0xFF90A4AE)];
       
       case 61:
       case 63:
-      case 65: // Pluie - Gris foncé bleuté
+      case 65:
         return [const Color(0xFF546E7A), const Color(0xFF78909C)];
       
       case 66:
-      case 67: // Pluie verglaçante - Gris glacé
+      case 67:
         return [const Color(0xFF607D8B), const Color(0xFF90A4AE)];
       
       case 71:
       case 73:
-      case 75: // Neige - Blanc-bleu glacé
+      case 75:
         return [const Color(0xFF90CAF9), const Color(0xFFBBDEFB)];
       
-      case 77: // Grains de neige - Blanc glacé
+      case 77:
         return [const Color(0xFFB0BEC5), const Color(0xFFCFD8DC)];
       
       case 80:
       case 81:
-      case 82: // Averses de pluie - Gris orageux
+      case 82:
         return [const Color(0xFF546E7A), const Color(0xFF607D8B)];
       
       case 85:
-      case 86: // Averses de neige - Gris-blanc
+      case 86:
         return [const Color(0xFF90A4AE), const Color(0xFFB0BEC5)];
       
       case 95:
       case 96:
-      case 99: // Orage - Gris très foncé
+      case 99:
         return [const Color(0xFF37474F), const Color(0xFF546E7A)];
       
-      default: // Par défaut - Bleu ciel
+      default:
         return [const Color(0xFF4A90E2), const Color(0xFF87CEEB)];
     }
   }

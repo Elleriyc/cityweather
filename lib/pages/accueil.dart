@@ -2,6 +2,8 @@ import 'package:cityweather/services/api_service.dart';
 import 'package:cityweather/services/database_service.dart';
 import 'package:cityweather/pages/favorites_page.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Page d'accueil "cityweather"
 /// Structure seulement — insérez vos appels API dans fetchWeather()
@@ -54,26 +56,37 @@ class _AccueilPageState extends State<AccueilPage> {
     super.dispose();
   }
 
-  // Récupérer la position GPS actuelle
-  // TODO: Implémenter la géolocalisation avec le package geolocator
   Future<void> getCurrentLocation() async {
     setState(() {
       _isLoadingLocation = true;
     });
 
     try {
-      // TODO: Remplacer par la vraie géolocalisation
-      // Exemple pour Paris en attendant :
-      await Future.delayed(const Duration(seconds: 1));
-      
-      final latitude = 48.8566; // TODO: utiliser la vraie latitude
-      final longitude = 2.3522; // TODO: utiliser la vraie longitude
-      
-      setState(() {
-        _currentLatitude = latitude;
-        _currentLongitude = longitude;
-      });
-      
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() => _error = "GPS désactivé");
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() => _error = "Permission GPS bloquée");
+      return;
+    }
+
+    // 👉 Récupération de la position
+    Position pos = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    final latitude = pos.latitude;
+    final longitude = pos.longitude;
+
       // Appeler l'API météo avec ces coordonnées
       await _fetchWeatherFromLocation(latitude, longitude);
       
@@ -297,7 +310,6 @@ class _AccueilPageState extends State<AccueilPage> {
         _weather = weatherData;
         _isFavorite = isFav;
       });
-      
       print('setState terminé, _weather=${_weather != null}');
     } catch (e) {
       print('ERREUR dans _processWeatherData: $e');
@@ -306,6 +318,33 @@ class _AccueilPageState extends State<AccueilPage> {
       });
     }
   }
+//   void _openMapWithCurrentPosition() {
+//   if (_locationWeather == null) {
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       const SnackBar(content: Text("Aucune position GPS disponible.")),
+//     );
+//     return;
+//   }
+
+//   openGoogleMaps(
+//     _locationWeather!.latitude,
+//     _locationWeather!.longitude,
+//   );
+// }
+void _openMapWithCurrentPosition() {
+  if (_locationWeather == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Localise-toi d'abord.")),
+    );
+    return;
+  }
+
+  openGoogleMaps(
+    _locationWeather!.latitude,
+    _locationWeather!.longitude,
+  );
+}
+
 
   // Ajouter/retirer des favoris
   Future<void> _toggleFavorite() async {
@@ -341,6 +380,29 @@ class _AccueilPageState extends State<AccueilPage> {
       );
     }
   }
+  void _openMapFromWeather(WeatherData w) {
+  openGoogleMaps(w.latitude, w.longitude);
+}
+
+  Future<void> openGoogleMaps(double lat, double lon) async {
+  final webUrl = Uri.parse(
+    "https://www.google.com/maps/search/?api=1&query=$lat,$lon",
+  );
+
+  try {
+    await launchUrl(
+      webUrl,
+      mode: LaunchMode.externalApplication,
+    );
+  } catch (e) {
+    print("Erreur Google Maps: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Impossible d’ouvrir Maps")),
+    );
+  }
+}
+
+  
 
   // Ouvrir la page des favoris
   void _openFavorites() {
@@ -530,86 +592,83 @@ class _AccueilPageState extends State<AccueilPage> {
       ],
     );
   }
-
   Widget _buildWeatherCard(WeatherData w, {required bool isLocation}) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    w.city,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
+  return Card(
+    margin: const EdgeInsets.symmetric(vertical: 16),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  w.city,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                // Bouton favori uniquement pour les recherches, pas pour la position
-                if (!isLocation)
-                  IconButton(
-                    icon: Icon(
-                      _isFavorite ? Icons.star : Icons.star_border,
-                      color: _isFavorite ? Colors.amber : Colors.grey,
-                    ),
-                    onPressed: _toggleFavorite,
-                    tooltip: _isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
+              ),
+              if (!isLocation)
+                IconButton(
+                  icon: Icon(
+                    _isFavorite ? Icons.star : Icons.star_border,
+                    color: _isFavorite ? Colors.amber : Colors.grey,
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (w.iconUrl != null && w.iconUrl!.isNotEmpty)
-                  Image.network(w.iconUrl!, width: 64, height: 64, fit: BoxFit.cover)
-                else
-                  const Icon(Icons.wb_cloudy, size: 64),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${w.temperatureC.round()} °C',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        w.description,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
+                  onPressed: _toggleFavorite,
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text('Humidité: ${w.humidity}%')),
-                Expanded(
-                  child: Text(
-                    'Vent: ${w.windKph.toStringAsFixed(1)} kph',
-                    textAlign: TextAlign.end,
-                  ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.wb_cloudy, size: 64),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${w.temperatureC.round()} °C',
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Text(w.description),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Coordonnées: ${w.latitude.toStringAsFixed(4)}°, ${w.longitude.toStringAsFixed(4)}°',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(child: Text('Humidité: ${w.humidity}%')),
+              Expanded(
+                child: Text(
+                  'Vent: ${w.windKph.toStringAsFixed(1)} kph',
+                  textAlign: TextAlign.end,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Coordonnées: ${w.latitude.toStringAsFixed(4)}°, ${w.longitude.toStringAsFixed(4)}°',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+
+          // 👉 BOUTON GOOGLE MAPS ICI
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            onPressed: () => _openMapFromWeather(w),
+            icon: const Icon(Icons.map),
+            label: const Text("Ouvrir dans Google Maps"),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Widget _buildBody() {
     print('_buildBody: _isLoading=$_isLoading, _error=$_error, _weather=${_weather != null}, _locationWeather=${_locationWeather != null}');
@@ -666,6 +725,7 @@ class _AccueilPageState extends State<AccueilPage> {
         child: Column(
           children: [
             _buildSearchBar(),
+
             Expanded(child: _buildBody()),
           ],
         ),

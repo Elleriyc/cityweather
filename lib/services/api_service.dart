@@ -71,7 +71,13 @@ Future<List<Map<String, dynamic>>> fetchCitySuggestions(String cityName) async {
 
 // Récupérer la météo à partir de coordonnées
 Future<Map<String, dynamic>> fetchWeatherFromCoordinates(double latitude, double longitude) async {
-  final urlForecast = Uri.parse('https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true');
+  final urlForecast = Uri.parse(
+    'https://api.open-meteo.com/v1/forecast?'
+    'latitude=$latitude&longitude=$longitude'
+    '&current_weather=true'
+    '&hourly=temperature_2m,weathercode'
+    '&forecast_days=1'
+  );
   
   final response = await http.get(urlForecast);
   
@@ -81,7 +87,12 @@ Future<Map<String, dynamic>> fetchWeatherFromCoordinates(double latitude, double
   
   final dataForecast = jsonDecode(response.body);
   
-  print('Données météo: $dataForecast');
+  print('Données météo complètes: ${dataForecast.keys}');
+  print('Hourly present: ${dataForecast.containsKey('hourly')}');
+  if (dataForecast.containsKey('hourly')) {
+    print('Hourly keys: ${(dataForecast['hourly'] as Map).keys}');
+  }
   
   return dataForecast;
 }
+
